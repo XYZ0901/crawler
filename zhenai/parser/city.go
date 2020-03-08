@@ -5,16 +5,19 @@ import (
 	"regexp"
 )
 
-var UserRe = regexp.MustCompile(`<div class="name fl"><a href="([^"])*" target="_blank" class="trans">([^<]*)</a></div>`)
+var UserRe = regexp.MustCompile(`<div class="name fl"><a href="([^"]*)" target="_blank" class="trans">([^<]*)</a></div>`)
 
 func ParseCity(contents []byte) (result engine.ParserResult) {
 	matches := UserRe.FindAllStringSubmatch(string(contents), -1)
 
 	for _, m := range matches {
-		result.Items = append(result.Items,"User "+m[2])
+		UserName := m[2]
+		result.Items = append(result.Items, "User "+UserName)
 		result.Requests = append(result.Requests, engine.Request{
-			Url:        m[1],
-			ParserFunc: engine.NilParser,
+			Url: "http:" + m[1],
+			ParserFunc: func(c []byte) engine.ParserResult {
+				return ParseProfile(c, UserName)
+			},
 		})
 	}
 	return

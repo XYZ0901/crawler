@@ -33,7 +33,9 @@ func GetProvinceCitys(all []byte) (result engine.ParserResult) {
 				Url:        `http://` + province[kp][kc] + url,
 				ParserFunc: ParseCity,
 			})
+			break
 		}
+		break
 	}
 	return
 }
