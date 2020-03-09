@@ -4,17 +4,20 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
 )
 
-func Fetch(url string) ([]byte,error){
+var rateLimiter = time.Tick(100 * time.Millisecond)
+
+func Fetch(url string) ([]byte, error) {
+	<-rateLimiter
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil,fmt.Errorf("Error:status code: %d", resp.StatusCode)
+		return nil, fmt.Errorf("Error:status code: %d", resp.StatusCode)
 	}
 	return ioutil.ReadAll(resp.Body)
 }
-
