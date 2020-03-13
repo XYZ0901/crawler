@@ -16,3 +16,9 @@ type Profile struct {
 	PhotoUrls     []string
 	UserUrl       string
 }
+
+type Item struct {
+	Type    string
+	Id      string
+	Profile Profile
+}

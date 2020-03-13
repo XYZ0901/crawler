@@ -3,55 +3,43 @@ package parser
 import (
 	"crawler/engine"
 	"crawler/model"
+	"crawler/persist"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
+
+var count = 1
+var ItemSave = persist.ItemSaver()
 
 var (
 	//UserNameRe      = regexp.MustCompile(`<div class="username">([^<]*)<span`)
-	AgeRe           = regexp.MustCompile("年龄：([^<]*)岁[^<]*</div>")
-	HeightRe        = regexp.MustCompile("身高：([^<]*)CM[^<]*</div>")
-	IncomeRe        = regexp.MustCompile("月收入：([^<]*)</div>")
-	MarriageRe      = regexp.MustCompile("婚况：([^<]*)</div>")
-	EducationRe     = regexp.MustCompile("学历：([^<]*)</div>")
-	OccupationRe    = regexp.MustCompile("职业：([^<]*)</div>")
-	WorkPlaceRe     = regexp.MustCompile("工作地：([^<]*)</div>")
-	ConstellationRe = regexp.MustCompile("星座：([^<]*)</div>")
-	NativePlaceRe   = regexp.MustCompile("籍　贯：([^<]*)</div>")
-	MemoRe          = regexp.MustCompile("内心独白：</span>([^<]*)</div>")
-	PhotoUrlsRe     = regexp.MustCompile(`<img width="100%" data-src="([^"]*)" alt="">`)
-	profileRe       = map[string]*regexp.Regexp{
-		//"UserName":      UserNameRe,
-		"Age":           AgeRe,
-		"Height":        HeightRe,
-		"Income":        IncomeRe,
-		"Marriage":      MarriageRe,
-		"Education":     EducationRe,
-		"Occupation":    OccupationRe,
-		"WorkPlace":     WorkPlaceRe,
-		"Constellation": ConstellationRe,
-		"NativePlace":   NativePlaceRe,
-		"Memo":          MemoRe,
-		"PhotoUrls":     PhotoUrlsRe,
+	IdRe      = regexp.MustCompile(`http://[a-z0-9^.]*.zhenai.com/([0-9]*).html`)
+	profileRe = map[string]*regexp.Regexp{
+		"Age":           regexp.MustCompile("年龄：([^<]*)岁[^<]*</div>"),
+		"Height":        regexp.MustCompile("身高：([^<]*)CM[^<]*</div>"),
+		"Income":        regexp.MustCompile("月收入：([^<]*)</div>"),
+		"Marriage":      regexp.MustCompile("婚况：([^<]*)</div>"),
+		"Education":     regexp.MustCompile("学历：([^<]*)</div>"),
+		"Occupation":    regexp.MustCompile("职业：([^<]*)</div>"),
+		"WorkPlace":     regexp.MustCompile("工作地：([^<]*)</div>"),
+		"Constellation": regexp.MustCompile("星座：([^<]*)</div>"),
+		"NativePlace":   regexp.MustCompile("籍　贯：([^<]*)</div>"),
+		"Memo":          regexp.MustCompile("内心独白：</span>([^<]*)</div>"),
+		"PhotoUrls":     regexp.MustCompile(`<img width="100%" data-src="([^"]*)" alt="">`),
 	}
 )
 
-// 这里可以用map转json在直接映射到profile里面 但是这里为了省事 如果需要操作的
-// 字段大量的话，可以尝试上面那个办法
-//可以将case里的东西都封装成同一个函数 但是现在2：23 要去睡觉了
+// 这里可以先做一个map然后转json然后映射到profile
 func ParseProfile(contents []byte, UserName, UserUrl string) (result engine.ParserResult) {
+	item := model.Item{}
 	profile := model.Profile{}
-	profile.UserName, profile.UserUrl = UserName, UserUrl
+	profile.UserName, profile.UserUrl, item.Type = UserName, UserUrl, "zhenai"
+	item.Id = IdRe.FindStringSubmatch(UserUrl)[1]
 	for k, v := range profileRe {
 		switch k {
-		//case "UserName":
-		//	res := v.FindStringSubmatch(string(contents))
-		//	if len(res) > 1 {
-		//		res[1] = strings.Replace(res[1]," ","",-1)
-		//		profile.UserName = res[1]
-		//	}
 		case "Age":
 			res := v.FindStringSubmatch(string(contents))
 			if len(res) > 1 {
@@ -65,53 +53,21 @@ func ParseProfile(contents []byte, UserName, UserUrl string) (result engine.Pars
 				profile.Height, _ = strconv.Atoi(res[1])
 			}
 		case "Income":
-			res := v.FindStringSubmatch(string(contents))
-			if len(res) > 1 {
-				res[1] = strings.Replace(res[1], " ", "", -1)
-				profile.Income = res[1]
-			}
+			getData(v, contents, &(profile.Income))
 		case "Marriage":
-			res := v.FindStringSubmatch(string(contents))
-			if len(res) > 1 {
-				res[1] = strings.Replace(res[1], " ", "", -1)
-				profile.Marriage = res[1]
-			}
+			getData(v, contents, &profile.Marriage)
 		case "Education":
-			res := v.FindStringSubmatch(string(contents))
-			if len(res) > 1 {
-				res[1] = strings.Replace(res[1], " ", "", -1)
-				profile.Education = res[1]
-			}
+			getData(v, contents, &profile.Education)
 		case "Occupation":
-			res := v.FindStringSubmatch(string(contents))
-			if len(res) > 1 {
-				res[1] = strings.Replace(res[1], " ", "", -1)
-				profile.Occupation = res[1]
-			}
+			getData(v, contents, &profile.Occupation)
 		case "WorkPlace":
-			res := v.FindStringSubmatch(string(contents))
-			if len(res) > 1 {
-				res[1] = strings.Replace(res[1], " ", "", -1)
-				profile.WorkPlace = res[1]
-			}
+			getData(v, contents, &profile.WorkPlace)
 		case "Constellation":
-			res := v.FindStringSubmatch(string(contents))
-			if len(res) > 1 {
-				res[1] = strings.Replace(res[1], " ", "", -1)
-				profile.Constellation = res[1]
-			}
+			getData(v, contents, &profile.Constellation)
 		case "NativePlace":
-			res := v.FindStringSubmatch(string(contents))
-			if len(res) > 1 {
-				res[1] = strings.Replace(res[1], " ", "", -1)
-				profile.NativePlace = res[1]
-			}
+			getData(v, contents, &profile.NativePlace)
 		case "Memo":
-			res := v.FindStringSubmatch(string(contents))
-			if len(res) > 1 {
-				res[1] = strings.Replace(res[1], " ", "", -1)
-				profile.Memo = res[1]
-			}
+			getData(v, contents, &profile.Memo)
 		case "PhotoUrls":
 			res := v.FindAllStringSubmatch(string(contents), -1)
 			if len(res) > 0 {
@@ -121,6 +77,20 @@ func ParseProfile(contents []byte, UserName, UserUrl string) (result engine.Pars
 			}
 		}
 	}
-	fmt.Println(profile)
+	if count%100 == 0 {
+		time.Sleep(3 * time.Second)
+	}
+	item.Profile = profile
+	fmt.Println("Item Saver: got item", count, "th ", profile)
+	count++
+	ItemSave <- item
 	return
+}
+
+func getData(v *regexp.Regexp, contents []byte, profile *string) {
+	res := v.FindStringSubmatch(string(contents))
+	if len(res) > 1 {
+		res[1] = strings.Replace(res[1], " ", "", -1)
+		*profile = res[1]
+	}
 }
